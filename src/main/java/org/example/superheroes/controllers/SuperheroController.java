@@ -26,15 +26,13 @@ public class SuperheroController {
         this.superheroConsumer = superheroConsumer;
         this.sqsConfig = sqsConfig;
     }
-
-    // Sends a test message to the SQS queue
     @GetMapping("/send")
-    public String sendTestMessage() {
-        String superheroName = "Iron Man"; // Example superhero name
+    public String sendTestMessage(@RequestParam(defaultValue = "Iron Man") String superheroName) {
         sqsClient.sendMessage(SendMessageRequest.builder()
                 .queueUrl(sqsConfig.getQueueUrl())
                 .messageBody(superheroName)
                 .build());
+
         return "Message sent to queue: " + superheroName;
     }
 
