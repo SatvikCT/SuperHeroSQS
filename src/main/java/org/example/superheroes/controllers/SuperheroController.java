@@ -1,4 +1,5 @@
 package org.example.superheroes.controllers;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.example.superheroes.config.SqsConfig;
 import org.example.superheroes.models.Superhero;
 import org.example.superheroes.services.SuperheroConsumer;
@@ -7,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-import java.util.List;
+import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 @RestController
 @RequestMapping("/api")
@@ -78,4 +81,22 @@ public class SuperheroController {
                 .messageBody(name).build());
         return response + " Updated to " + name;
     }
+
+    @PutMapping("/update")
+    public String updateSuperhero(@RequestBody Map<String, Object> updateRequest) throws JsonProcessingException {
+        // Extract superhero name and other properties from the request
+        String superheroName = (String) updateRequest.get("name");
+
+        // Serialize the request body as a string to send to the SQS queue
+        String messageBody = new ObjectMapper().writeValueAsString(updateRequest);
+
+        // Send the update request to the SQS queue
+        sqsClient.sendMessage(SendMessageRequest.builder()
+                .queueUrl(sqsConfig.getQueueUrl())
+                .messageBody(messageBody)
+                .build());
+
+        return "Update request for superhero '" + superheroName + "' sent to queue.";
+    }
+
 }

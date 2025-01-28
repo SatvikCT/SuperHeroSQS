@@ -10,11 +10,12 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
-import java.util.List;
+import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 @Service
 public class SuperheroQueueConsumer {
-
     @Autowired
     private SqsClient sqsClient;
 
@@ -23,6 +24,8 @@ public class SuperheroQueueConsumer {
 
     @Autowired
     private SuperheroRepository superheroRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Continuous polling of the queue
     public void consumeQueue() {
@@ -59,18 +62,65 @@ public class SuperheroQueueConsumer {
     }
 
     // Handle individual messages
-    private void handleMessage(String superheroName) {
-        // Check if the superhero exists in the database
-        Superhero superhero = superheroRepository.findByName(superheroName);
+//    private void handleMessage(String superheroName) {
+//        // Check if the superhero exists in the database
+//        Superhero superhero = superheroRepository.findByName(superheroName);
+//
+//        if (superhero == null) {
+//            // Superhero not found
+//            System.out.println("Superhero with name '" + superheroName + "' not found in the database.");
+//        } else {
+//            // Superhero found, mark as true
+//            superhero.setMarked(true);
+//            superheroRepository.save(superhero);
+//            System.out.println("Superhero '" + superheroName + "' marked as true in the database.");
+//        }
+//    }
 
-        if (superhero == null) {
-            // Superhero not found
-            System.out.println("Superhero with name '" + superheroName + "' not found in the database.");
-        } else {
-            // Superhero found, mark as true
-            superhero.setMarked(true);
-            superheroRepository.save(superhero);
-            System.out.println("Superhero '" + superheroName + "' marked as true in the database.");
+    private void handleMessage(String messageBody) {
+        try {
+            // Parse the message body into a map
+            Map<String, Object> updateRequest = objectMapper.readValue(messageBody, Map.class);
+
+            // Extract the superhero name
+            String superheroName = (String) updateRequest.get("name");
+
+            // Find the superhero in the database
+            Superhero superhero = superheroRepository.findByName(superheroName);
+
+            if (superhero == null) {
+                System.out.println("Superhero with name '" + superheroName + "' not found in the database.");
+            } else {
+                // Update the superhero's properties dynamically
+                updateRequest.forEach((key, value) -> {
+                    switch (key) {
+                        case "power":
+                            superhero.setPower((String) value);
+                            break;
+                        case "age":
+                            superhero.setAge((Integer) value);
+                            break;
+                        case "gender":
+                            superhero.setGender((String) value);
+                            break;
+                        case "universe":
+                            superhero.setUniverse((String) value);
+                            break;
+                        case "marked":
+                            superhero.setMarked((Boolean) value);
+                            break;
+                        default:
+                            // Ignore unrecognized properties
+                            break;
+                    }
+                });
+
+                // Save the updated superhero to the database
+                superheroRepository.save(superhero);
+                System.out.println("Superhero '" + superheroName + "' updated with changes: " + updateRequest);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing message: " + e.getMessage());
         }
     }
 }
